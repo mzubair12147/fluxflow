@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: nest-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: nest_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data:Z
+    restart: always
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: nest-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  pg_data:
