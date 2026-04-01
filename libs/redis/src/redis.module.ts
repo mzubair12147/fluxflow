@@ -1,14 +1,16 @@
 import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
-import { redisProvider } from './redis.service';
-import { REDIS_TOKEN } from '@app/common/lib';
+import { RedisProvider } from './redis.service';
+import { REDIS_TOKEN } from './redis.constants';
 import Redis from 'ioredis';
-import { ConfigModule } from '@nestjs/config';
+import { RedisHealthService } from './redis.health';
+import { ConfigModule } from '@app/common/config/config.module';
+import { LoggerModule } from 'y/logger';
 
 @Global()
 @Module({
-    imports: [ConfigModule],
-    providers: [redisProvider],
-    exports: [REDIS_TOKEN],
+    imports: [ConfigModule, LoggerModule],
+    providers: [RedisProvider, RedisHealthService],
+    exports: [REDIS_TOKEN, RedisHealthService],
 })
 export class RedisModule implements OnApplicationShutdown {
     constructor(@Inject(REDIS_TOKEN) private readonly redisClient: Redis) {}

@@ -7,13 +7,14 @@ import {
     Logger,
     Injectable,
 } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema'; // shared schema
 import { DatabaseService } from './database.service';
+import { ConfigModule } from '@app/common/config/config.module';
+import { ConfigService } from '@nestjs/config';
 
-export const DRIZZLE = Symbol('DRIZZLE');
+export const DRIZZLE = Symbol('DRIZZLE_CLIENT');
 const PG_POOL = Symbol('PG_POOL');
 
 @Injectable()
@@ -36,14 +37,22 @@ class PoolService implements OnApplicationShutdown {
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => {
                 const connectionString =
-                    configService.get<string>('DATABASE_URL');
-                if (!connectionString) throw new Error('DATABASE_URL missing');
-                return new Pool({
+                    configService.get<string>('DATABASE_URL') ||
+                    `postgresql://${configService.get('DATABASE_USERNAME')}:${configService.get('DATABASE_PASSWORD')}@${configService.get('DATABASE_HOST')}:${configService.get('DATABASE_PORT')}/${configService.get('DATABASE_NAME')}`;
+                if (!connectionString) {
+                    throw new Error(
+                        'DATABASE_URL or database env vars missing',
+                    );
+                }
+
+                const pool = new Pool({
                     connectionString,
                     max: configService.get<number>('DATABASE_POOL_MAX', 20),
                     idleTimeoutMillis: 30_000,
                     connectionTimeoutMillis: 5_000,
                 });
+
+                return pool;
             },
         },
         {

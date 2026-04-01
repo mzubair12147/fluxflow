@@ -1,0 +1,2 @@
+export const REDIS_TOKEN = 'REDIS_CLIENT';
+export const REDIS_SCRIPTS = 'REDIS_SCRIPTS';
