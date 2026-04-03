@@ -103,11 +103,15 @@ export class AuthService {
         });
 
         if (existingUser) {
-            throw new ConflictException('A user with this email already exists.');
+            throw new ConflictException(
+                'A user with this email already exists.',
+            );
         }
 
         if (!dto.password) {
-            throw new BadRequestException('Password is required for Email signup');
+            throw new BadRequestException(
+                'Password is required for Email signup',
+            );
         }
 
         const passwordHash = await bcrypt.hash(
@@ -163,7 +167,10 @@ export class AuthService {
             };
         }
 
-        await this.sendEmailVerificationSafely(result.user.email, verificationToken);
+        await this.sendEmailVerificationSafely(
+            result.user.email,
+            verificationToken,
+        );
 
         return response;
     }
@@ -187,7 +194,9 @@ export class AuthService {
         const email = dto.email;
 
         if (!dto.password) {
-            throw new BadRequestException('Password is required for Email login');
+            throw new BadRequestException(
+                'Password is required for Email login',
+            );
         }
 
         const user = await this.db.query.users.findFirst({
@@ -204,7 +213,10 @@ export class AuthService {
             );
         }
 
-        const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+        const isPasswordValid = await bcrypt.compare(
+            dto.password,
+            user.passwordHash,
+        );
         if (!isPasswordValid) {
             throw new UnauthorizedException('Invalid credentials');
         }
@@ -230,9 +242,15 @@ export class AuthService {
                 })
                 .where(eq(schema.users.id, user.id));
 
-            await tx.insert(schema.sessions).values(
-                this.buildSessionInsertValues(user.id, tokens.refreshToken, sessionMetadata),
-            );
+            await tx
+                .insert(schema.sessions)
+                .values(
+                    this.buildSessionInsertValues(
+                        user.id,
+                        tokens.refreshToken,
+                        sessionMetadata,
+                    ),
+                );
         });
 
         return {
@@ -249,7 +267,10 @@ export class AuthService {
         };
     }
 
-    async refreshTokens(refreshToken: string, sessionMetadata?: SessionMetadata) {
+    async refreshTokens(
+        refreshToken: string,
+        sessionMetadata?: SessionMetadata,
+    ) {
         const payload = await this.verifyRefreshToken(refreshToken);
         const refreshTokenHash = this.hashToken(refreshToken);
 
@@ -308,197 +329,13 @@ export class AuthService {
         };
     }
 
-    async requestEmailVerification(email: string) {
-        const user = await this.db.query.users.findFirst({
-            where: eq(schema.users.email, email),
-        });
-
-        const response: Record<string, unknown> = {
-            message:
-                'If an account exists, email verification instructions were generated.',
-        };
-
-        if (!user || user.emailVerified) {
-            return response;
-        }
-
-        const verificationToken = this.generateToken();
-
-        await this.db
-            .update(schema.users)
-            .set({
-                emailVerificationToken: this.hashToken(verificationToken),
-                emailVerificationExpiresAt: this.getEmailVerificationExpiryDate(),
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.users.id, user.id));
-
-        if (this.shouldExposeDebugTokens()) {
-            response.debugEmailVerificationToken = verificationToken;
-        }
-
-        await this.sendEmailVerificationSafely(user.email, verificationToken);
-
-        return response;
-    }
-
-    async verifyEmail(token: string) {
-        const hashedToken = this.hashToken(token);
-
-        const user = await this.db.query.users.findFirst({
-            where: eq(schema.users.emailVerificationToken, hashedToken),
-        });
-
-        if (!user) {
-            throw new UnauthorizedException('Invalid email verification token');
-        }
-
-        if (
-            user.emailVerificationExpiresAt &&
-            new Date() > user.emailVerificationExpiresAt
-        ) {
-            await this.db
-                .update(schema.users)
-                .set({
-                    emailVerificationToken: null,
-                    emailVerificationExpiresAt: null,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.users.id, user.id));
-            throw new UnauthorizedException(
-                'Email verification token expired. Request a new one.',
-            );
-        }
-
-        await this.db
-            .update(schema.users)
-            .set({
-                emailVerified: true,
-                emailVerifiedAt: new Date(),
-                emailVerificationToken: null,
-                emailVerificationExpiresAt: null,
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.users.id, user.id));
-
-        return { message: 'Email verified successfully.' };
-    }
-
-    async forgotPassword(email: string) {
-        const user = await this.db.query.users.findFirst({
-            where: eq(schema.users.email, email),
-        });
-
-        const response: Record<string, unknown> = {
-            message: 'If an account exists, password reset instructions were generated.',
-        };
-
-        if (!user || !user.passwordHash) {
-            return response;
-        }
-
-        const resetToken = this.generateToken();
-
-        await this.db
-            .update(schema.users)
-            .set({
-                passwordResetToken: this.hashToken(resetToken),
-                passwordResetExpiresAt: this.getPasswordResetExpiryDate(),
-                updatedAt: new Date(),
-            })
-            .where(eq(schema.users.id, user.id));
-
-        if (this.shouldExposeDebugTokens()) {
-            response.debugPasswordResetToken = resetToken;
-        }
-
-        await this.sendPasswordResetSafely(user.email, resetToken);
-
-        return response;
-    }
-
-    async resetPassword(token: string, newPassword: string) {
-        const hashedToken = this.hashToken(token);
-        const user = await this.db.query.users.findFirst({
-            where: eq(schema.users.passwordResetToken, hashedToken),
-        });
-
-        if (!user) {
-            throw new UnauthorizedException('Invalid password reset token');
-        }
-
-        if (user.passwordResetExpiresAt && new Date() > user.passwordResetExpiresAt) {
-            await this.db
-                .update(schema.users)
-                .set({
-                    passwordResetToken: null,
-                    passwordResetExpiresAt: null,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.users.id, user.id));
-            throw new UnauthorizedException(
-                'Password reset token expired. Request a new one.',
-            );
-        }
-
-        const passwordHash = await bcrypt.hash(
-            newPassword,
-            AuthService.PASSWORD_ROUNDS,
-        );
-
-        await this.db.transaction(async (tx) => {
-            await tx
-                .update(schema.users)
-                .set({
-                    passwordHash,
-                    passwordResetToken: null,
-                    passwordResetExpiresAt: null,
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.users.id, user.id));
-
-            await tx
-                .delete(schema.sessions)
-                .where(eq(schema.sessions.userId, user.id));
-        });
-
-        return { message: 'Password reset successful. Please log in again.' };
-    }
-
-    async listSessions(userId: string, currentRefreshToken?: string) {
-        const currentRefreshTokenHash = currentRefreshToken
-            ? this.hashToken(currentRefreshToken)
-            : null;
-
-        const sessions = await this.db
-            .select({
-                id: schema.sessions.id,
-                sessionToken: schema.sessions.sessionToken,
-                expiresAt: schema.sessions.expiresAt,
-                userAgent: schema.sessions.userAgent,
-                ipAddress: schema.sessions.ipAddress,
-            })
-            .from(schema.sessions)
-            .where(eq(schema.sessions.userId, userId))
-            .orderBy(desc(schema.sessions.expiresAt));
-
-        return {
-            sessions: sessions.map((session) => ({
-                id: session.id,
-                expiresAt: session.expiresAt,
-                userAgent: session.userAgent,
-                ipAddress: session.ipAddress,
-                isCurrent:
-                    currentRefreshTokenHash !== null &&
-                    session.sessionToken === currentRefreshTokenHash,
-            })),
-        };
-    }
-
+    // Add this inside your AuthService class
     async revokeSession(refreshToken: string): Promise<void> {
         if (!refreshToken) return;
 
         const refreshTokenHash = this.hashToken(refreshToken);
+
+        // Delete the session from the database
         await this.db
             .delete(schema.sessions)
             .where(eq(schema.sessions.sessionToken, refreshTokenHash));
@@ -562,7 +399,10 @@ export class AuthService {
         const existingAccount = await this.db.query.accounts.findFirst({
             where: and(
                 eq(schema.accounts.provider, provider),
-                eq(schema.accounts.providerAccountId, identity.providerAccountId),
+                eq(
+                    schema.accounts.providerAccountId,
+                    identity.providerAccountId,
+                ),
             ),
         });
 
@@ -573,7 +413,9 @@ export class AuthService {
                 });
 
                 if (!existingUser) {
-                    throw new UnauthorizedException('OAuth account is not linked properly.');
+                    throw new UnauthorizedException(
+                        'OAuth account is not linked properly.',
+                    );
                 }
 
                 await tx
@@ -638,9 +480,12 @@ export class AuthService {
                     .values({
                         userId: user.id,
                         firstName:
-                            identity.firstName ?? input.fallbackFirstName ?? 'User',
+                            identity.firstName ??
+                            input.fallbackFirstName ??
+                            'User',
                         lastName: identity.lastName ?? input.fallbackLastName,
-                        avatarUrl: identity.avatarUrl ?? input.fallbackAvatarUrl,
+                        avatarUrl:
+                            identity.avatarUrl ?? input.fallbackAvatarUrl,
                     })
                     .returning();
             }
@@ -654,14 +499,19 @@ export class AuthService {
             return { user, profile };
         });
 
-        const tokens = await this.generateTokens(result.user.id, result.user.email);
-        await this.db.insert(schema.sessions).values(
-            this.buildSessionInsertValues(
-                result.user.id,
-                tokens.refreshToken,
-                sessionMetadata,
-            ),
+        const tokens = await this.generateTokens(
+            result.user.id,
+            result.user.email,
         );
+        await this.db
+            .insert(schema.sessions)
+            .values(
+                this.buildSessionInsertValues(
+                    result.user.id,
+                    tokens.refreshToken,
+                    sessionMetadata,
+                ),
+            );
 
         return {
             user: {
@@ -696,19 +546,20 @@ export class AuthService {
     }
 
     private async verifyRefreshToken(refreshToken: string) {
-        const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+        const refreshSecret =
+            this.configService.get<string>('JWT_REFRESH_SECRET');
 
         if (!refreshSecret) {
             throw new Error('JWT refresh secret is missing in configuration');
         }
 
         try {
-            return await this.jwtService.verifyAsync<{ sub: string; email: string }>(
-                refreshToken,
-                {
-                    secret: refreshSecret,
-                },
-            );
+            return await this.jwtService.verifyAsync<{
+                sub: string;
+                email: string;
+            }>(refreshToken, {
+                secret: refreshSecret,
+            });
         } catch {
             throw new UnauthorizedException('Invalid or expired refresh token');
         }
@@ -716,8 +567,10 @@ export class AuthService {
 
     private async generateTokens(userId: string, email: string) {
         const payload = { sub: userId, email };
-        const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
-        const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+        const accessSecret =
+            this.configService.get<string>('JWT_ACCESS_SECRET');
+        const refreshSecret =
+            this.configService.get<string>('JWT_REFRESH_SECRET');
 
         if (!accessSecret || !refreshSecret) {
             throw new Error('JWT secrets are missing in configuration');
@@ -785,7 +638,9 @@ export class AuthService {
     }
 
     private shouldExposeDebugTokens(): boolean {
-        const explicit = this.configService.get<string>('AUTH_RETURN_DEBUG_TOKENS');
+        const explicit = this.configService.get<string>(
+            'AUTH_RETURN_DEBUG_TOKENS',
+        );
         if (explicit === 'true') return true;
         if (explicit === 'false') return false;
         return this.configService.get<string>('NODE_ENV') !== 'production';
@@ -793,7 +648,10 @@ export class AuthService {
 
     private async sendEmailVerificationSafely(email: string, token: string) {
         try {
-            await this.authEmailService.sendEmailVerificationEmail(email, token);
+            await this.authEmailService.sendEmailVerificationEmail(
+                email,
+                token,
+            );
         } catch (error) {
             this.logger.error(
                 `Failed to send verification email to ${email}`,

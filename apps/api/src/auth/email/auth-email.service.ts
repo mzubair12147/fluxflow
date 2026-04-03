@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-    AUTH_EMAIL_SENDER,
-    type AuthEmailSender,
-} from './email-sender';
+import { AUTH_EMAIL_SENDER, type AuthEmailSender } from './email-sender';
 
 @Injectable()
 export class AuthEmailService {
@@ -13,7 +10,10 @@ export class AuthEmailService {
         private readonly configService: ConfigService,
     ) {}
 
-    async sendEmailVerificationEmail(email: string, token: string): Promise<void> {
+    async sendEmailVerificationEmail(
+        email: string,
+        token: string,
+    ): Promise<void> {
         const verificationUrl = this.buildActionUrl(
             'AUTH_EMAIL_VERIFICATION_URL',
             '/auth/verify-email',
