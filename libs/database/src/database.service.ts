@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE } from './database.module';
 import { sql } from 'drizzle-orm';
+import * as schema from './schema';
+import { DRIZZLE } from '@app/common/lib';
 
 @Injectable()
 export class DatabaseService {

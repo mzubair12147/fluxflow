@@ -13,9 +13,7 @@ import * as schema from './schema'; // shared schema
 import { DatabaseService } from './database.service';
 import { ConfigModule } from '@app/common/config/config.module';
 import { ConfigService } from '@nestjs/config';
-
-export const DRIZZLE = Symbol('DRIZZLE_CLIENT');
-const PG_POOL = Symbol('PG_POOL');
+import { DRIZZLE, PG_POOL } from '@app/common/lib';
 
 @Injectable()
 class PoolService implements OnApplicationShutdown {

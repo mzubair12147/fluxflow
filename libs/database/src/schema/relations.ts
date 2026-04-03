@@ -1,14 +1,41 @@
 import { relations } from 'drizzle-orm';
-import { users } from './auth.schema';
+import { users, profiles, accounts, sessions } from './auth.schema';
 import { plans } from './plan.schema';
 import { tenants } from './tenants.schema';
 import { requestLogs } from './requestLogs.schema';
 import { paymentDetails } from './paymentDetails.schema';
 import { auditLogs } from './auditLogs.schema';
 
-export const userRelations = relations(users, ({ many }) => ({
+export const userRelations = relations(users, ({ many, one }) => ({
+    profile: one(profiles, {
+        fields: [users.id],
+        references: [profiles.userId],
+    }),
     tenants: many(tenants),
     auditLogs: many(auditLogs),
+    accounts: many(accounts),
+    sessions: many(sessions),
+}));
+
+export const profileRelations = relations(profiles, ({ one }) => ({
+    user: one(users, {
+        fields: [profiles.userId],
+        references: [users.id],
+    }),
+}));
+
+export const accountRelations = relations(accounts, ({ one }) => ({
+    user: one(users, {
+        fields: [accounts.userId],
+        references: [users.id],
+    }),
+}));
+
+export const sessionRelations = relations(sessions, ({ one }) => ({
+    user: one(users, {
+        fields: [sessions.userId],
+        references: [users.id],
+    }),
 }));
 
 export const planRelations = relations(plans, ({ many }) => ({

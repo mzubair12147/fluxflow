@@ -7,6 +7,7 @@ import {
     boolean,
     integer,
     check,
+    uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -31,10 +32,19 @@ export const users = pgTable(
 
         // Auth & Verification state
         emailVerified: boolean('email_verified').default(false).notNull(),
+        emailVerifiedAt: timestamp('email_verified_at', {
+            withTimezone: true,
+            mode: 'date',
+        }),
         emailVerificationToken: text('email_verification_token'),
+        emailVerificationExpiresAt: timestamp('email_verification_expires_at', {
+            withTimezone: true,
+            mode: 'date',
+        }),
         passwordResetToken: text('password_reset_token'),
         passwordResetExpiresAt: timestamp('password_reset_expires_at', {
             withTimezone: true,
+            mode: 'date',
         }),
 
         // Activity & Soft Deletes
@@ -80,17 +90,25 @@ export const profiles = pgTable('profiles', {
 // ==========================================
 // 3. Social Logins (Accounts) - NextAuth Ready
 // ==========================================
-export const accounts = pgTable('accounts', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-        .notNull()
-        .references(() => users.id, { onDelete: 'cascade' }),
-    provider: text('provider').notNull(), // e.g., 'google', 'github'
-    providerAccountId: text('provider_account_id').notNull(), // Unique ID from Provider
-    refreshToken: text('refresh_token'),
-    accessToken: text('access_token'),
-    expiresAt: integer('expires_at'),
-});
+export const accounts = pgTable(
+    'accounts',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        userId: uuid('user_id')
+            .notNull()
+            .references(() => users.id, { onDelete: 'cascade' }),
+        provider: text('provider').notNull(), // e.g., 'google', 'github'
+        providerAccountId: text('provider_account_id').notNull(), // Unique ID from Provider
+        refreshToken: text('refresh_token'),
+        accessToken: text('access_token'),
+        expiresAt: integer('expires_at'),
+    },
+    (table) => ({
+        providerAccountUnique: uniqueIndex(
+            'accounts_provider_provider_account_id_unique',
+        ).on(table.provider, table.providerAccountId),
+    }),
+);
 
 // ==========================================
 // 4. Device Sessions - Refresh Token Rotation

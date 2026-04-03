@@ -57,6 +57,69 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Auth Setup
+
+The API app now includes production-oriented auth building blocks for web, mobile,
+and external auth adapter compatibility (e.g., NextAuth/Better Auth style flows).
+
+### Implemented endpoints
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/me`
+- `POST /auth/email/verification/request`
+- `POST /auth/email/verification/confirm`
+- `POST /auth/password/forgot`
+- `POST /auth/password/reset`
+- `GET /auth/sessions`
+- `DELETE /auth/sessions/:sessionId`
+- `DELETE /auth/sessions?keepCurrent=true|false`
+- `GET /auth/oauth/providers`
+
+### Required env vars
+
+- `DATABASE_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `REDIS_HOST`
+
+### Optional auth env vars
+
+- `AUTH_EMAIL_VERIFICATION_TTL_MINUTES`
+- `AUTH_PASSWORD_RESET_TTL_MINUTES`
+- `AUTH_RETURN_DEBUG_TOKENS=true|false`
+- `AUTH_FRONTEND_BASE_URL`
+- `AUTH_EMAIL_VERIFICATION_URL`
+- `AUTH_PASSWORD_RESET_URL`
+
+### SMTP email sender env vars
+
+If `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM` are provided, SMTP is used.
+Otherwise, email payloads are logged to console (safe dev fallback).
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_FROM`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `AUTH_SMTP_SECURE=true|false`
+
+### Google OAuth verifier env vars
+
+Google verifier is enabled when client IDs are configured.
+
+- `AUTH_GOOGLE_CLIENT_IDS` (comma-separated, preferred)
+- `GOOGLE_CLIENT_ID` (single value fallback)
+
+### Client integration notes
+
+- Web clients can use HttpOnly cookie refresh tokens.
+- Mobile clients can send refresh tokens in request body.
+- `x-refresh-token` header is also accepted.
+- `x-client-type: mobile` selects mobile behavior; default is web.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

@@ -13,20 +13,30 @@ export enum AuthType {
     OAUTH = 'oauth',
 }
 
+export enum OAuthProvider {
+    GOOGLE = 'google',
+    APPLE = 'apple',
+    GITHUB = 'github',
+}
+
 export class SignUpDto {
     @IsEnum(AuthType)
     @IsNotEmpty()
     authType: AuthType;
 
-    // 1. Email is ALWAYS required in your schema
+    // Required for email auth, optional fallback for OAuth
+    @ValidateIf((o) => o.authType === AuthType.EMAIL || o.email !== undefined)
     @IsEmail()
     @IsNotEmpty()
-    email: string;
+    email?: string;
 
-    // 2. First Name is ALWAYS required (mapped to profiles.firstName)
+    // Required for email auth, optional fallback for OAuth
+    @ValidateIf(
+        (o) => o.authType === AuthType.EMAIL || o.firstName !== undefined,
+    )
     @IsString()
     @IsNotEmpty()
-    firstName: string;
+    firstName?: string;
 
     // 3. Last Name is Optional (mapped to profiles.lastName)
     @IsOptional()
@@ -40,7 +50,13 @@ export class SignUpDto {
     @IsNotEmpty()
     password?: string;
 
-    // 5. Provider Token (from OAuth) is ONLY required if authType is 'oauth'
+    // 5. OAuth provider is required when authType is 'oauth'
+    @ValidateIf((o) => o.authType === AuthType.OAUTH)
+    @IsEnum(OAuthProvider)
+    @IsNotEmpty()
+    provider?: OAuthProvider;
+
+    // 6. Provider Token (from OAuth) is ONLY required if authType is 'oauth'
     @ValidateIf((o) => o.authType === AuthType.OAUTH)
     @IsString()
     @IsNotEmpty()

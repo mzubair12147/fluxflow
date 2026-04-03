@@ -2,27 +2,36 @@ import {
     IsEmail,
     IsEnum,
     IsNotEmpty,
-    IsOptional,
     IsString,
+    ValidateIf,
 } from 'class-validator';
-import { AuthType } from './sign-up.dto';
+import { AuthType, OAuthProvider } from './sign-up.dto';
 
 export class SignInDto {
     @IsEnum(AuthType)
     @IsNotEmpty()
     authType: AuthType;
 
+    @ValidateIf((o) => o.authType === AuthType.EMAIL || o.email !== undefined)
     @IsEmail()
     @IsNotEmpty()
-    email: string;
+    email?: string;
 
-    // Optional because OAuth logins don't send passwords
-    @IsOptional()
+    // Required for email/password login
+    @ValidateIf((o) => o.authType === AuthType.EMAIL)
+    @IsNotEmpty()
     @IsString()
     password?: string;
 
-    // Optional because standard logins don't send provider tokens
-    @IsOptional()
+    // Required for OAuth login
+    @ValidateIf((o) => o.authType === AuthType.OAUTH)
+    @IsEnum(OAuthProvider)
+    @IsNotEmpty()
+    provider?: OAuthProvider;
+
+    // Required for OAuth login
+    @ValidateIf((o) => o.authType === AuthType.OAUTH)
+    @IsNotEmpty()
     @IsString()
     providerToken?: string;
 }
